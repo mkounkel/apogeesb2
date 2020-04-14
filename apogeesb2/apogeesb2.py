@@ -20,8 +20,10 @@ parser.add_argument("directory",help="Directory containing apstar fits files")
 parser.add_argument("--out",help="Name of the fits table to save identified SB2 properties (Default sb2s.fits)",default='sb2s.fits')
 parser.add_argument("--saveall",help="Save deconvolution for all sources (Default False)",default='False')
 parser.add_argument("--outall",help="Name of the fits table to save identified SB2 properties (Default all_deconvolutions.fits)",default='all_deconvolutions.fits')
+parser.add_argument("--makeccf",help="Make CCF from the data (default True), or read existing pickle",default='True')
 parser.add_argument("--ccfs",help="Name where to dump the pickle file containing ccfs (Default ccfs.pickle)",default='ccfs.pickle')
 parser.add_argument("--meta",help="Name where to dump the pickle file containing corresponding metadata (Default ccfs_meta.pickle)",default='ccfs_meta.pickle')
+parser.add_argument("--deconvolve",help="Deconvolve CCFs from scratch (default True), or read existing pickle",default='True')
 parser.add_argument("--deconvol",help="Name where to dump the pickle file containing raw deconvolution (Default ccfs_decomposed.pickle)",default='ccfs_decomposed.pickle')
 parser.add_argument("--deletetemp",help="Delete temporary files (Default True)",default='True')
 
@@ -179,7 +181,7 @@ def filtersb2s(args):
 	        a=b[np.where((g['pos'][i,b]==rv) | (((10**v>vsini) | ((10**v<=vsini) & (v>sig*k[0]+k[1]))) & (vsini<10**v*l[0]+l[1]) & (vsini<10**v*m[0]+m[1])) )[0]]
 	        g['flag'][i,a]=4
 	        
-	    c=np.flip(np.argsort(g['flag'][i]))
+	    c=(np.argsort(5-g['flag'][i]))
 	    g['fwh'][i,:]=g['fwh'][i,c]
 	    g['amp'][i,:]=g['amp'][i,c]
 	    g['pos'][i,:]=g['pos'][i,c]
@@ -215,8 +217,10 @@ def run():
 		parser.print_help(sys.stderr)
 		sys.exit(1)
 	args=parser.parse_args()
-	makeccfs(args)
-	deconvolve(args)
+	if args.makeccf=="True":
+		makeccfs(args)
+	if args.deconvolve=="True":
+		deconvolve(args)
 	filtersb2s(args)
 	if args.deletetemp=="True":
 		deletetemp(args)
