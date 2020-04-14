@@ -15,6 +15,8 @@ apogeesb2 /path/apogee/spectro/redux/r13/stars/apo25m/105-45
 
 ##
 ```
+Identify SB2s in the APOGEE spectra via gaussian fitting of the CCF
+
 positional arguments:
   directory             Directory containing apstar fits files
 
@@ -25,10 +27,15 @@ optional arguments:
   --saveall SAVEALL     Save deconvolution for all sources (Default False)
   --outall OUTALL       Name of the fits table to save identified SB2
                         properties (Default all_deconvolutions.fits)
+  --makeccf MAKECCF     Make CCF from the data (default True), or read
+                        existing pickle
   --ccfs CCFS           Name where to dump the pickle file containing ccfs
                         (Default ccfs.pickle)
   --meta META           Name where to dump the pickle file containing
                         corresponding metadata (Default ccfs_meta.pickle)
+  --deconvolve DECONVOLVE
+                        Deconvolve CCFs from scratch (default True), or read
+                        existing pickle
   --deconvol DECONVOL   Name where to dump the pickle file containing raw
                         deconvolution (Default ccfs_decomposed.pickle)
   --deletetemp DELETETEMP
