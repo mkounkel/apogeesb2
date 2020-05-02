@@ -234,9 +234,9 @@ def filtersb2s(args):
 	    g[ind].write(args.out, format='fits',overwrite=True)
 	else:
 	    print('No SB2s found')
-	return
-	if args.saveall != "False":
+	if not args.saveall == "False":
 		g.write(args.outall, format='fits',overwrite=True)
+	return
     
 
 def deletetemp(args):
