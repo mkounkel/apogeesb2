@@ -50,7 +50,7 @@ def calcR(x,pm):
 
 def makeccfs(args):
 	data_save={}
-	ids,hjds,fibers,locs,fields,ra,dec,telescope=[],[],[],[],[],[],[],[]
+	ids,hjds,fibers,locs,fields,ras,decs,telescopes=[],[],[],[],[],[],[],[]
 	err=np.ones(1001)*0.05
 	lag=np.array(range(-500,501))
 	lag1=np.array(range(-400,401))
@@ -84,9 +84,9 @@ def makeccfs(args):
 	                    fibers.append(HDU0['fiber'+str(visit+1)])
 	                    locs.append(HDU0['LOCID'])
 	                    fields.append(HDU0['FIELD'])
-	                    ra.append(HDU0['RA'])
-	                    dec.append(HDU0['DEC'])
-	                    telescope.append(HDU0['TELESCOP'])
+	                    ras.append(HDU0['RA'])
+	                    decs.append(HDU0['DEC'])
+	                    telescopes.append(HDU0['TELESCOP'])
 	                    ccfi=np.interp(lag1,xccf,ccf)
 	                    diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))
 	                    ccfi=ccfi-diff
@@ -100,7 +100,7 @@ def makeccfs(args):
 	    except:
 	            print('bad apstar file: '+path)
 	pickle.dump(data_save, open(args.ccfs, 'wb'))
-	pickle.dump([ids,hjds,fibers,locs,fields,ra,dec,telescope],open(args.meta,'wb'))
+	pickle.dump([ids,hjds,fibers,locs,fields,ras,decs,telescopes],open(args.meta,'wb'))
 	return
 
 
@@ -128,7 +128,7 @@ def deconvolve(args):
 def filtersb2s(args):
 	conv = pickle.load(open(args.deconvol,"rb"))
 	ccf = pickle.load(open(args.ccfs,"rb"))
-	ids,hjds,fibers,locs,fields,ra,dec,telescope = pickle.load(open(args.meta,"rb"))
+	ids,hjds,fibers,locs,fields,ras,decs,telescopes = pickle.load(open(args.meta,"rb"))
 	
 	l=len(conv['means_fit'])
 	
@@ -146,9 +146,9 @@ def filtersb2s(args):
 	locid=Column(locs,name='locid')
 	fiber=Column(fibers,name='fiber')
 	field=Column(fields,name='field')
-	ra=Column(fields,name='ra')
-	dec=Column(fields,name='dec')
-	telescope=Column(fields,name='telescope')
+	ra=Column(ras,name='ra')
+	dec=Column(decs,name='dec')
+	telescope=Column(telescopes,name='telescope')
 	
 	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,locid,fiber,field,telescope])
 	
