@@ -228,7 +228,7 @@ def filtersb2s(args):
 	                    ax.text(chan[0], o+0.1, str(g['hjd'][objid]))
 	            ax.set_xlabel('RV (km/s)')
 	            plt.title(g['objid'][objid])
-	            plt.savefig(args.plotdir+'/'+g['objid'][objid]+'.pdf')  
+	            plt.savefig(args.plotdir+'/'+g['objid'][objid]+'_'+g['field'][objid]+'.pdf')  
 	            
 	            
 	    g[ind].write(args.out, format='fits',overwrite=True)
