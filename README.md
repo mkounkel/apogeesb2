@@ -22,6 +22,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --usepath USEPATH     Instead of scanning directory, use txt file with full
+                        paths to all apstar files (Default False)
   --out OUT             Name of the fits table to save identified SB2
                         properties (Default sb2s.fits)
   --saveall SAVEALL     Save deconvolution for all sources (Default False)
@@ -40,4 +42,7 @@ optional arguments:
                         deconvolution (Default ccfs_decomposed.pickle)
   --deletetemp DELETETEMP
                         Delete temporary files (Default True)
+  --makeplots MAKEPLOTS
+                        Generate CCF plots (Default True)
+  --plotdir PLOTDIR     Folder to output the figures (Default plots)
 ```
