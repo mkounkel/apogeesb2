@@ -187,7 +187,6 @@ def filtersb2s(args):
 	    if len(b)>0:
 	        y=np.argmax(g['amp'][i,b])
 	        rv=g['pos'][i,b[y]]
-	        print((g['efwh'][i]))
 	        vsini=g['fwh'][i,b[y]]
 	        sig=g['sig'][i]
 	        v=np.log10(np.abs(g['pos'][i,b]-rv))
