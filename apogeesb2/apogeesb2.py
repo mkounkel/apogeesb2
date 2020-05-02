@@ -7,6 +7,8 @@ import pickle
 import warnings
 import os,glob,sys
 import argparse
+from matplotlib import pyplot as plt
+import matplotlib.cm as cm
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
@@ -17,6 +19,7 @@ apogeesb2 /path/apogee/spectro/redux/r13/stars/apo25m/105-45
 
 parser = argparse.ArgumentParser(description='Identify SB2s in the APOGEE spectra via gaussian fitting of the CCF',epilog=example_text,formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("directory",help="Directory containing apstar fits files")
+parser.add_argument("--usepath",help="Instead of scanning directory, use txt file with full paths to all apstar files (Default False)",default='False')
 parser.add_argument("--out",help="Name of the fits table to save identified SB2 properties (Default sb2s.fits)",default='sb2s.fits')
 parser.add_argument("--saveall",help="Save deconvolution for all sources (Default False)",default='False')
 parser.add_argument("--outall",help="Name of the fits table to save identified SB2 properties (Default all_deconvolutions.fits)",default='all_deconvolutions.fits')
@@ -26,6 +29,8 @@ parser.add_argument("--meta",help="Name where to dump the pickle file containing
 parser.add_argument("--deconvolve",help="Deconvolve CCFs from scratch (default True), or read existing pickle",default='True')
 parser.add_argument("--deconvol",help="Name where to dump the pickle file containing raw deconvolution (Default ccfs_decomposed.pickle)",default='ccfs_decomposed.pickle')
 parser.add_argument("--deletetemp",help="Delete temporary files (Default True)",default='True')
+parser.add_argument("--makeplots",help="Generate CCF plots (Default True)",default='True')
+parser.add_argument("--plotdir",help="Folder to output the figures (Default plots)",default='plots')
 
 
 def gaussian(amp, fwhm, mean):
@@ -45,11 +50,15 @@ def calcR(x,pm):
 
 def makeccfs(args):
 	data_save={}
-	ids,hjds,fibers,locs,fields=[],[],[],[],[]
+	ids,hjds,fibers,locs,fields,ra,dec,telescope=[],[],[],[],[],[],[],[]
 	err=np.ones(1001)*0.05
 	lag=np.array(range(-500,501))
 	lag1=np.array(range(-400,401))
-	paths=glob.glob(args.directory+'/*.fits')
+	if args.usepath == "False":
+		paths=glob.glob(args.directory+'/*.fits')
+	else:
+		with open(args.directory) as f:
+			paths = f.read().splitlines()
 	for path in paths:
 	    try:
 	        data = fits.open(path)
@@ -75,6 +84,9 @@ def makeccfs(args):
 	                    fibers.append(HDU0['fiber'+str(visit+1)])
 	                    locs.append(HDU0['LOCID'])
 	                    fields.append(HDU0['FIELD'])
+	                    ra.append(HDU0['RA'])
+	                    dec.append(HDU0['DEC'])
+	                    telescope.append(HDU0['TELESCOP'])
 	                    ccfi=np.interp(lag1,xccf,ccf)
 	                    diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))
 	                    ccfi=ccfi-diff
@@ -88,7 +100,7 @@ def makeccfs(args):
 	    except:
 	            print('bad apstar file: '+path)
 	pickle.dump(data_save, open(args.ccfs, 'wb'))
-	pickle.dump([ids,hjds,fibers,locs,fields],open(args.meta,'wb'))
+	pickle.dump([ids,hjds,fibers,locs,fields,ra,dec,telescope],open(args.meta,'wb'))
 	return
 
 
@@ -116,7 +128,7 @@ def deconvolve(args):
 def filtersb2s(args):
 	conv = pickle.load(open(args.deconvol,"rb"))
 	ccf = pickle.load(open(args.ccfs,"rb"))
-	ids,hjds,fibers,locs,fields = pickle.load(open(args.meta,"rb"))
+	ids,hjds,fibers,locs,fields,ra,dec,telescope = pickle.load(open(args.meta,"rb"))
 	
 	l=len(conv['means_fit'])
 	
@@ -134,8 +146,11 @@ def filtersb2s(args):
 	locid=Column(locs,name='locid')
 	fiber=Column(fibers,name='fiber')
 	field=Column(fields,name='field')
+	ra=Column(fields,name='ra')
+	dec=Column(fields,name='dec')
+	telescope=Column(fields,name='telescope')
 	
-	g=Table([amp,pos,fwh,eamp,epos,efwh,flag,sig,n,objid,hjd,locid,fiber,field])
+	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,locid,fiber,field,telescope])
 	
 	k=np.polyfit([-2.25,-0.7],[1.8,1.3],1)
 	l=np.polyfit([25,50],[20,40],1)
@@ -144,7 +159,7 @@ def filtersb2s(args):
 	for i in range(len(g)):
 	    d=len(conv['means_fit'][i])
 	    g['pos'][i,:d]=conv['means_fit'][i]
-	    g['fwh'][i,:d]=conv['fwhms_fit'][i]
+	    g['fwh'][i,:d]=np.abs(conv['fwhms_fit'][i])
 	    g['amp'][i,:d]=conv['amplitudes_fit'][i]
 	    g['epos'][i,:d]=conv['means_fit_err'][i]
 	    g['efwh'][i,:d]=conv['fwhms_fit_err'][i]
@@ -172,6 +187,7 @@ def filtersb2s(args):
 	    if len(b)>0:
 	        y=np.argmax(g['amp'][i,b])
 	        rv=g['pos'][i,b[y]]
+	        print((g['efwh'][i]))
 	        vsini=g['fwh'][i,b[y]]
 	        sig=g['sig'][i]
 	        v=np.log10(np.abs(g['pos'][i,b]-rv))
@@ -180,6 +196,7 @@ def filtersb2s(args):
 	        
 	        a=b[np.where((g['pos'][i,b]==rv) | (((10**v>vsini) | ((10**v<=vsini) & (v>sig*k[0]+k[1]))) & (vsini<10**v*l[0]+l[1]) & (vsini<10**v*m[0]+m[1])) )[0]]
 	        g['flag'][i,a]=4
+	        
 	        
 	    c=(np.argsort(5-g['flag'][i]))
 	    g['fwh'][i,:]=g['fwh'][i,c]
@@ -191,20 +208,38 @@ def filtersb2s(args):
 	    g['flag'][i,:]=g['flag'][i,c]
 	    
 	    
-	    
+	if (args.makeplots=="True") and (not os.path.exists(args.plotdir)):
+		os.makedirs(args.plotdir)
+	
 	a=np.where(g['flag'][:,1]>2)[0]
 	ind=[]
 	if len(a)>0:
 	    objs=np.unique(g['objid'][a])
 	    for obj in objs:
-	        ind.extend(np.where(g['objid']==obj)[0])
+	        objids=np.where(g['objid']==obj)[0]
+	        ind.extend(objids)
+	        if args.makeplots=="True":
+	            f, ax =plt.subplots(1,1,figsize=(8,1+len(objids)*1.5))
+	            for o,objid in enumerate(objids):
+	                chan=ccf['x_values'][objid][100:901]
+	                ax.plot(chan,ccf['data_list'][objid][100:901]+o,c='black',linewidth=4.0)
+	                for j in range(g['n'][objid]):
+	                    z=gaussian(g['amp'][objid,j], g['fwh'][objid,j], g['pos'][objid,j])(chan)
+	                    ax.plot(chan,z+o,c=cm.Set1(4-g['flag'][objid,j]))
+	                    ax.text(chan[0], o+0.1, str(g['hjd'][objid]))
+	            ax.set_xlabel('RV (km/s)')
+	            plt.title(g['objid'][objid])
+	            plt.savefig(args.plotdir+'/'+g['objid'][objid]+'.pdf')  
+	            
+	            
 	    g[ind].write(args.out, format='fits',overwrite=True)
 	else:
 	    print('No SB2s found')
 	return
-	if args.saveall == "True":
+	if args.saveall != "False":
 		g.write(args.outall, format='fits',overwrite=True)
     
+
 def deletetemp(args):
 	os.remove(args.ccfs)
 	os.remove(args.meta)
@@ -217,6 +252,7 @@ def run():
 		parser.print_help(sys.stderr)
 		sys.exit(1)
 	args=parser.parse_args()
+	print('Processing '+args.directory)
 	if args.makeccf=="True":
 		makeccfs(args)
 	if args.deconvolve=="True":
