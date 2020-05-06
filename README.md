@@ -45,4 +45,8 @@ optional arguments:
   --makeplots MAKEPLOTS
                         Generate CCF plots (Default True)
   --plotdir PLOTDIR     Folder to output the figures (Default plots)
+  --width WIDTH         Width from the central peak to scan, in km/s (Default
+                        400)
+  --alpha ALPHA         Default alpha parameter (Default 1.5)
+  --offset OFFSET       Default offset to the continuum (Default 0)
 ```
