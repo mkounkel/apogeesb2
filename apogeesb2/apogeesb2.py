@@ -31,6 +31,9 @@ parser.add_argument("--deconvol",help="Name where to dump the pickle file contai
 parser.add_argument("--deletetemp",help="Delete temporary files (Default True)",default='True')
 parser.add_argument("--makeplots",help="Generate CCF plots (Default True)",default='True')
 parser.add_argument("--plotdir",help="Folder to output the figures (Default plots)",default='plots')
+parser.add_argument("--width",help="Width from the central peak to scan, in km/s (Default 400)",default=400)
+parser.add_argument("--alpha",help="Default alpha parameter (Default 1.5)",default=1.5)
+parser.add_argument("--offset",help="Default offset to the continuum (Default 0)",default=0)
 
 
 def gaussian(amp, fwhm, mean):
@@ -51,11 +54,13 @@ def calcR(x,pm):
 def makeccfs(args):
 	data_save={}
 	ids,hjds,fibers,locs,fields,ras,decs,telescopes=[],[],[],[],[],[],[],[]
-	err=np.ones(1001)*0.05
-	lag=np.array(range(-500,501))
-	lag1=np.array(range(-400,401))
+	err=np.ones(int(args.width)*2+201)*0.05
+	lag=np.array(range(-int(args.width)-100,int(args.width)+101))
+	lag1=np.array(range(-int(args.width),int(args.width)+1))
 	if args.usepath == "False":
 		paths=glob.glob(args.directory+'/*.fits')
+		if len(paths)==0:
+			paths=[args.directory]
 	else:
 		with open(args.directory) as f:
 			paths = f.read().splitlines()
@@ -88,7 +93,7 @@ def makeccfs(args):
 	                    decs.append(HDU0['DEC'])
 	                    telescopes.append(HDU0['TELESCOP'])
 	                    ccfi=np.interp(lag1,xccf,ccf)
-	                    diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))
+	                    diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))+float(args.offset)
 	                    ccfi=ccfi-diff
 	                    a=np.zeros(100).tolist()
 	                    a.extend(ccfi)
@@ -105,17 +110,14 @@ def makeccfs(args):
 
 
 def deconvolve(args):
-	# Specify necessary parameters
-	alpha1 = +1.5
-	snr_thresh = 4.
 	
 	# Load GaussPy
 	g = gp.GaussianDecomposer()
 	
 	# Setting AGD parameters
 	g.set('phase', 'one')
-	g.set('SNR_thresh', [snr_thresh, snr_thresh])
-	g.set('alpha1', alpha1)
+	g.set('SNR_thresh', [4, 4])
+	g.set('alpha1', float(args.alpha))
 	
 	# Run GaussPy
 	data_decomp = g.batch_decomposition(args.ccfs)
@@ -169,7 +171,7 @@ def filtersb2s(args):
 	    
 	    lag=ccf['x_values'][i]
 	    
-	    a=np.where((np.isfinite(g['amp'][i])==False) | (g['pos'][i]<=lag[90]) | (g['pos'][i]>=lag[910]) | (g['amp'][i]==0))[0]
+	    a=np.where((np.isfinite(g['amp'][i])==False) | (g['pos'][i]<=lag[90]) | (g['pos'][i]>=lag[int(args.width)*2+110]) | (g['amp'][i]==0))[0]
 	    g['fwh'][i,a]=float("nan")
 	    g['amp'][i,a]=float("nan")
 	    g['pos'][i,a]=float("nan")
@@ -181,7 +183,7 @@ def filtersb2s(args):
 	    a=np.where((g['fwh'][i]<=1) | (g['fwh'][i]>= 500) | (g['amp'][i]<=0.15) | (g['amp'][i]>= 3))[0]
 	    g['flag'][i,a]=1
 	    
-	    b=np.where((g['fwh'][i]>1) & (g['fwh'][i]<500) & (g['amp'][i]>0.15) & (g['amp'][i]<3) & (np.isfinite(g['amp'][i])==True) & (g['pos'][i]>lag[90]) & (g['pos'][i]<lag[910]))[0]
+	    b=np.where((g['fwh'][i]>1) & (g['fwh'][i]<500) & (g['amp'][i]>0.15) & (g['amp'][i]<3) & (np.isfinite(g['amp'][i])==True) & (g['pos'][i]>lag[90]) & (g['pos'][i]<lag[int(args.width)*2+110]))[0]
 	    g['flag'][i,b]=2
 	    
 	    if len(b)>0:
@@ -218,17 +220,18 @@ def filtersb2s(args):
 	        objids=np.where(g['objid']==obj)[0]
 	        ind.extend(objids)
 	        if args.makeplots=="True":
-	            f, ax =plt.subplots(1,1,figsize=(8,1+len(objids)*1.5))
+	            f, ax =plt.subplots(1,1,figsize=(8,1.5+len(objids)*1.5))
 	            for o,objid in enumerate(objids):
-	                chan=ccf['x_values'][objid][100:901]
-	                ax.plot(chan,ccf['data_list'][objid][100:901]+o,c='black',linewidth=4.0)
+	                chan=ccf['x_values'][objid][100:(int(args.width)*2+101)]
+	                ax.plot(chan,ccf['data_list'][objid][100:(int(args.width)*2+101)]+o,c='black',linewidth=4.0)
 	                for j in range(g['n'][objid]):
 	                    z=gaussian(g['amp'][objid,j], g['fwh'][objid,j], g['pos'][objid,j])(chan)
 	                    ax.plot(chan,z+o,c=cm.Set1(4-g['flag'][objid,j]))
-	                    ax.text(chan[0], o+0.1, str(g['hjd'][objid]))
+	                ax.text(chan[0], o+0.1, str(g['hjd'][objid]))
 	            ax.set_xlabel('RV (km/s)')
 	            plt.title(g['objid'][objid])
-	            plt.savefig(args.plotdir+'/'+g['objid'][objid]+'_'+g['field'][objid]+'.pdf')  
+	            plt.savefig(args.plotdir+'/'+g['objid'][objid]+'_'+g['field'][objid]+'.pdf',dpi=300, bbox_inches='tight')  
+	            plt.close()
 	            
 	            
 	    g[ind].write(args.out, format='fits',overwrite=True)
