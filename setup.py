@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     
 setuptools.setup(
     name="apogeesb2",
-    version="0.3",
+    version="0.4",
     author="Marina Kounkel",
     author_email="marina.kounkel@wwu.edu",
     description="Examine CCFs in the APOGEE apstar files to search for double lined spectroscopic binaries",
