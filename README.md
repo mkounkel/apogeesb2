@@ -21,7 +21,6 @@ positional arguments:
   directory             Directory containing apstar fits files
 
 optional arguments:
-  -h, --help            show this help message and exit
   --usepath USEPATH     Instead of scanning directory, use txt file with full
                         paths to all apstar files (Default False)
   --out OUT             Name of the fits table to save identified SB2
@@ -49,4 +48,7 @@ optional arguments:
                         400)
   --alpha ALPHA         Default alpha parameter (Default 1.5)
   --offset OFFSET       Default offset to the continuum (Default 0)
+  --epoch EPOCH [EPOCH ...]
+                        Epochs to apply, starting with 0 (Default all)
+  --silent SILENT       Print paths (Default False)
 ```
