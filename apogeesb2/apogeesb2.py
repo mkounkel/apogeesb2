@@ -34,6 +34,8 @@ parser.add_argument("--plotdir",help="Folder to output the figures (Default plot
 parser.add_argument("--width",help="Width from the central peak to scan, in km/s (Default 400)",default=400)
 parser.add_argument("--alpha",help="Default alpha parameter (Default 1.5)",default=1.5)
 parser.add_argument("--offset",help="Default offset to the continuum (Default 0)",default=0)
+parser.add_argument('--epoch', nargs='+', type=int, help="Epochs to apply, starting with 0 (default all)",default=-1)
+parser.add_argument('--silent', help="Print paths",default='False')
 
 
 def gaussian(amp, fwhm, mean):
@@ -65,24 +67,29 @@ def makeccfs(args):
 		with open(args.directory) as f:
 			paths = f.read().splitlines()
 	for path in paths:
+	    if args.silent=='False':
+	        print(path)
+			
 	    try:
 	        data = fits.open(path)
 	        point = data[9]
-	        xccf = point.data[0][29] # Proper location of x values of the CCF
+	        xccf = point.data[0][29]
 	        xccf=(10**(xccf*6e-6)-1)*2.99792458e5
 	        CCF = point.data[0][27]
 	        HDU0 = fits.getheader(path,0)
 	        nvisits = HDU0['NVISITS']
-	        #edit this to more seamlessly handle single-visit sources (KRC had one single-visit source fail)
-	        for visit in range(0,nvisits):
+	        if args.epoch !=-1:
+	            r=args.epoch
+	        else:
+	            r=range(0,nvisits)
+	        for visit in r:
 	                if nvisits == 1:
 	                    ccf = CCF
 	                else:
 	                    ccf = CCF[visit+2]
 	                snr = HDU0['SNRVIS'+str(visit+1)]
 	                vhelio = HDU0['VHELIO'+str(visit+1)]
-	                #read in HJD identifier to more uniquely identify individual visits
-	                nonzeroes = np.count_nonzero(ccf) # This condition is meant to eliminate visits that are empty
+	                nonzeroes = np.count_nonzero(ccf)
 	                if nonzeroes >= 1:
 	                    ids.append(HDU0['OBJID'])
 	                    hjds.append(HDU0['HJD'+str(visit+1)])
@@ -151,8 +158,9 @@ def filtersb2s(args):
 	ra=Column(ras,name='ra')
 	dec=Column(decs,name='dec')
 	telescope=Column(telescopes,name='telescope')
+	off=Column(hjds*0,name='off')
 	
-	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,locid,fiber,field,telescope])
+	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,locid,fiber,field,telescope,off])
 	
 	k=np.polyfit([-2.25,-0.7],[1.8,1.3],1)
 	l=np.polyfit([25,50],[20,40],1)
@@ -180,10 +188,10 @@ def filtersb2s(args):
 	    g['epos'][i,a]=float("nan")
 	    g['flag'][i,a]=0
 	    
-	    a=np.where((g['fwh'][i]<=1) | (g['fwh'][i]>= 500) | (g['amp'][i]<=0.15) | (g['amp'][i]>= 3))[0]
+	    a=np.where((g['fwh'][i]<=1) | (g['fwh'][i]>= 100) | (g['amp'][i]<=0.15) | (g['amp'][i]>= 3))[0]
 	    g['flag'][i,a]=1
 	    
-	    b=np.where((g['fwh'][i]>1) & (g['fwh'][i]<500) & (g['amp'][i]>0.15) & (g['amp'][i]<3) & (np.isfinite(g['amp'][i])==True) & (g['pos'][i]>lag[90]) & (g['pos'][i]<lag[int(args.width)*2+110]))[0]
+	    b=np.where((g['fwh'][i]>1) & (g['fwh'][i]<100) & (g['amp'][i]>0.15) & (g['amp'][i]<3) & (np.isfinite(g['amp'][i])==True) & (g['pos'][i]>lag[90]) & (g['pos'][i]<lag[int(args.width)*2+110]))[0]
 	    g['flag'][i,b]=2
 	    
 	    if len(b)>0:
