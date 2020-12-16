@@ -69,13 +69,12 @@ def makeccfs(args):
 	for path in paths:
 	    if args.silent=='False':
 	        print(path)
-			
 	    try:
 	        data = fits.open(path)
 	        point = data[9]
-	        xccf = point.data[0][29]
-	        xccf=(10**(xccf*6e-6)-1)*2.99792458e5
-	        CCF = point.data[0][27]
+	        XCCF = point.data['x_ccf']
+	        #xccf=(10**(xccf*6e-6)-1)*2.99792458e5
+	        CCF = point.data['ccf']
 	        HDU0 = fits.getheader(path,0)
 	        nvisits = HDU0['NVISITS']
 	        if args.epoch !=-1:
@@ -83,32 +82,38 @@ def makeccfs(args):
 	        else:
 	            r=range(0,nvisits)
 	        for visit in r:
-	                if nvisits == 1:
-	                    ccf = CCF
-	                else:
-	                    ccf = CCF[visit+2]
-	                snr = HDU0['SNRVIS'+str(visit+1)]
+	            if nvisits==1:
+	                ccf=CCF[0][0]
+	                xccf=XCCF[0][0]+HDU0['BC'+str(visit+1)]
+	            else:
+	                ccf = CCF[visit,:]
+	                xccf= XCCF[visit,:]+HDU0['BC'+str(visit+1)]
+	            #plt.plot(xccf,ccf)
+	            #plt.show()
+	            snr = HDU0['SNRVIS'+str(visit+1)]
+	            vhelio = HDU0['VHELIO'+str(visit+1)]
+	            nonzeroes = np.count_nonzero(ccf)
+	            a=np.where(np.isfinite(xccf))[0]
+	            if (nonzeroes >= 1) & (len(a)>100):
+	                ids.append(HDU0['OBJID'])
+	                hjds.append(HDU0['JD'+str(visit+1)]-2400000.)
+	                fibers.append(HDU0['fiber'+str(visit+1)])
 	                vhelio = HDU0['VHELIO'+str(visit+1)]
-	                nonzeroes = np.count_nonzero(ccf)
-	                if nonzeroes >= 1:
-	                    ids.append(HDU0['OBJID'])
-	                    hjds.append(HDU0['HJD'+str(visit+1)])
-	                    fibers.append(HDU0['fiber'+str(visit+1)])
-	                    locs.append(HDU0['LOCID'])
-	                    fields.append(HDU0['FIELD'])
-	                    ras.append(HDU0['RA'])
-	                    decs.append(HDU0['DEC'])
-	                    telescopes.append(HDU0['TELESCOP'])
-	                    ccfi=np.interp(lag1,xccf,ccf)
-	                    diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))+float(args.offset)
-	                    ccfi=ccfi-diff
-	                    a=np.zeros(100).tolist()
-	                    a.extend(ccfi)
-	                    a.extend(np.zeros(100).tolist())
-	                    a=np.array(a)
-	                    data_save['data_list'] = data_save.get('data_list', []) + [a]
-	                    data_save['x_values'] = data_save.get('x_values', []) + [lag+vhelio]
-	                    data_save['errors'] = data_save.get('errors', []) + [err]
+	                #locs.append(HDU0['LOCID'])
+	                fields.append(HDU0['FIELD'])
+	                ras.append(HDU0['RA'])
+	                decs.append(HDU0['DEC'])
+	                #telescopes.append(HDU0['TELESCOP'])
+	                ccfi=np.interp(lag1+vhelio,xccf[a],ccf[a])
+	                diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))+float(args.offset)
+	                ccfi=ccfi-diff
+	                a=np.zeros(100).tolist()
+	                a.extend(ccfi)
+	                a.extend(np.zeros(100).tolist())
+	                a=np.array(a)
+	                data_save['data_list'] = data_save.get('data_list', []) + [a]
+	                data_save['x_values'] = data_save.get('x_values', []) + [lag+vhelio]
+	                data_save['errors'] = data_save.get('errors', []) + [err]
 	    except:
 	            print('bad apstar file: '+path)
 	pickle.dump(data_save, open(args.ccfs, 'wb'))
@@ -152,15 +157,16 @@ def filtersb2s(args):
 	n = Column(name='n',length=l,dtype=int)
 	objid=Column(ids,name='objid')
 	hjd=Column(hjds,name='hjd')
-	locid=Column(locs,name='locid')
+	#locid=Column(locs,name='locid')
 	fiber=Column(fibers,name='fiber')
 	field=Column(fields,name='field')
 	ra=Column(ras,name='ra')
 	dec=Column(decs,name='dec')
-	telescope=Column(telescopes,name='telescope')
-	off=Column(hjds*0,name='off')
+	#telescope=Column(telescopes,name='telescope')
+	off=Column(hjds,name='off',length=l)
+	off=off*0
 	
-	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,locid,fiber,field,telescope,off])
+	g=Table([objid,hjd,ra,dec,amp,pos,fwh,eamp,epos,efwh,flag,sig,n,fiber,field,off])#,locid,telescope
 	
 	k=np.polyfit([-2.25,-0.7],[1.8,1.3],1)
 	l=np.polyfit([25,50],[20,40],1)
