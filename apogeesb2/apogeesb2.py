@@ -60,7 +60,7 @@ def makeccfs(args):
 	lag=np.array(range(-int(args.width)-100,int(args.width)+101))
 	lag1=np.array(range(-int(args.width),int(args.width)+1))
 	if args.usepath == "False":
-		paths=glob.glob(args.directory+'/*.fits')
+		paths=glob.glob(args.directory+'/*Star-*.fits')
 		if len(paths)==0:
 			paths=[args.directory]
 	else:
@@ -83,11 +83,11 @@ def makeccfs(args):
 	            r=range(0,nvisits)
 	        for visit in r:
 	            if nvisits==1:
-	                ccf=CCF[0][0]
-	                xccf=XCCF[0][0]+HDU0['BC'+str(visit+1)]
+	                ccf=CCF[0]
+	                xccf=XCCF[0]#+HDU0['BC'+str(visit+1)]
 	            else:
 	                ccf = CCF[visit,:]
-	                xccf= XCCF[visit,:]+HDU0['BC'+str(visit+1)]
+	                xccf= XCCF[visit,:]#+HDU0['BC'+str(visit+1)]
 	            #plt.plot(xccf,ccf)
 	            #plt.show()
 	            snr = HDU0['SNRVIS'+str(visit+1)]
@@ -130,7 +130,7 @@ def deconvolve(args):
 	g.set('phase', 'one')
 	g.set('SNR_thresh', [4, 4])
 	g.set('alpha1', float(args.alpha))
-	
+
 	# Run GaussPy
 	data_decomp = g.batch_decomposition(args.ccfs)
 	
@@ -146,13 +146,13 @@ def filtersb2s(args):
 	
 	l=len(conv['means_fit'])
 	
-	amp=Column(name='amp',length=l,dtype=float,shape=[8])
-	pos=Column(name='pos',length=l,dtype=float,shape=[8])
-	fwh=Column(name='fwh',length=l,dtype=float,shape=[8])
-	eamp=Column(name='eamp',length=l,dtype=float,shape=[8])
-	epos=Column(name='epos',length=l,dtype=float,shape=[8])
-	efwh=Column(name='efwh',length=l,dtype=float,shape=[8])
-	flag=Column(name='flag',length=l,dtype=int,shape=[8])
+	amp=Column(name='amp',length=l,dtype=float,shape=(4,))
+	pos=Column(name='pos',length=l,dtype=float,shape=(4,))
+	fwh=Column(name='fwh',length=l,dtype=float,shape=(4,))
+	eamp=Column(name='eamp',length=l,dtype=float,shape=(4,))
+	epos=Column(name='epos',length=l,dtype=float,shape=(4,))
+	efwh=Column(name='efwh',length=l,dtype=float,shape=(4,))
+	flag=Column(name='flag',length=l,dtype=int,shape=(4,))
 	sig = Column(name='sig',length=l)
 	n = Column(name='n',length=l,dtype=int)
 	objid=Column(ids,name='objid')
@@ -173,14 +173,14 @@ def filtersb2s(args):
 	m=np.polyfit([50,170],[40,70],1)
 	
 	for i in range(len(g)):
-	    d=len(conv['means_fit'][i])
-	    g['pos'][i,:d]=conv['means_fit'][i]
-	    g['fwh'][i,:d]=np.abs(conv['fwhms_fit'][i])
-	    g['amp'][i,:d]=conv['amplitudes_fit'][i]
-	    g['epos'][i,:d]=conv['means_fit_err'][i]
-	    g['efwh'][i,:d]=conv['fwhms_fit_err'][i]
-	    g['eamp'][i,:d]=conv['amplitudes_fit_err'][i]
-	    g['n'][i]=d
+	    d=np.min([len(conv['means_fit'][i]),4])
+	    g['pos'][i,:d]=conv['means_fit'][i][:d]
+	    g['fwh'][i,:d]=np.abs(conv['fwhms_fit'][i][:d])
+	    g['amp'][i,:d]=conv['amplitudes_fit'][i][:d]
+	    g['epos'][i,:d]=conv['means_fit_err'][i][:d]
+	    g['efwh'][i,:d]=conv['fwhms_fit_err'][i][:d]
+	    g['eamp'][i,:d]=conv['amplitudes_fit_err'][i][:d]
+	    g['n'][i]=len(conv['means_fit'][i])
 	    g['sig'][i]=np.log10(calcR(ccf['data_list'][i],30))
 	    
 	    lag=ccf['x_values'][i]
