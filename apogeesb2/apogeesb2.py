@@ -34,6 +34,9 @@ parser.add_argument("--plotdir",help="Folder to output the figures (Default plot
 parser.add_argument("--width",help="Width from the central peak to scan, in km/s (Default 400)",default=400)
 parser.add_argument("--alpha",help="Default alpha parameter (Default 1.5)",default=1.5)
 parser.add_argument("--offset",help="Default offset to the continuum (Default 0)",default=0)
+parser.add_argument("--do_offset",help="Default offset to the continuum (Default True)",default='True')
+parser.add_argument("--err",help="Default assumed noise (default 0.05)",default=0.05)
+parser.add_argument("--snr",help="Minimum SNR (default 4)",default=4)
 parser.add_argument('--epoch', nargs='+', type=int, help="Epochs to apply, starting with 0 (default all)",default=-1)
 parser.add_argument('--silent', help="Print paths",default='False')
 
@@ -56,7 +59,7 @@ def calcR(x,pm):
 def makeccfs(args):
 	data_save={}
 	ids,hjds,fibers,locs,fields,ras,decs,telescopes=[],[],[],[],[],[],[],[]
-	err=np.ones(int(args.width)*2+201)*0.05
+	err=np.ones(int(args.width)*2+201)*float(args.err)
 	lag=np.array(range(-int(args.width)-100,int(args.width)+101))
 	lag1=np.array(range(-int(args.width),int(args.width)+1))
 	if args.usepath == "False":
@@ -106,7 +109,8 @@ def makeccfs(args):
 	                #telescopes.append(HDU0['TELESCOP'])
 	                ccfi=np.interp(lag1+vhelio,xccf[a],ccf[a])
 	                diff=np.max(np.array([(np.max(ccfi))*0.2,np.median(ccfi)]))+float(args.offset)
-	                ccfi=ccfi-diff
+	                if args.do_offset=='True':
+	                	ccfi=ccfi-diff
 	                a=np.zeros(100).tolist()
 	                a.extend(ccfi)
 	                a.extend(np.zeros(100).tolist())
@@ -128,7 +132,7 @@ def deconvolve(args):
 	
 	# Setting AGD parameters
 	g.set('phase', 'one')
-	g.set('SNR_thresh', [4, 4])
+	g.set('SNR_thresh', [float(args.snr), float(args.snr)])
 	g.set('alpha1', float(args.alpha))
 
 	# Run GaussPy
