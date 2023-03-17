@@ -87,10 +87,10 @@ def makeccfs(args):
             for visit in r:
                 if nvisits==1:
                     ccf=CCF[0][0]
-                    xccf=XCCF[0][0]
+                    xccf=XCCF[0][0]+HDU0['BC'+str(visit+1)]
                 else:
                     ccf = CCF[visit,:]
-                    xccf= XCCF[visit,:]
+                    xccf= XCCF[visit,:]+HDU0['BC'+str(visit+1)]
                 snr = HDU0['SNRVIS'+str(visit+1)]
                 nonzeroes = np.count_nonzero(ccf)
                 a=np.where(np.isfinite(xccf))[0]
